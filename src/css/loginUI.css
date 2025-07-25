@@ -1,0 +1,66 @@
+/* Common Form Wrapper */
+.loginForm {
+  max-width: 400px;
+  margin: 2rem auto;
+  padding: 2rem;
+  background: #f9f9f9;
+  border-radius: 1rem;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+/* Heading */
+.loginForm h2 {
+  font-size: 2rem;
+  margin-bottom: 1.5rem;
+  color: #333;
+}
+
+/* Inputs */
+.loginForm input {
+  width: 100%;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+}
+
+/* Button */
+.loginForm button {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: #2783c9;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.loginForm button:hover {
+  background-color: #173852;
+}
+
+/* Link & Message */
+.loginForm p {
+  margin-top: 1rem;
+  font-size: 0.9rem;
+}
+
+.loginForm a {
+  color: #2783c9;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.loginForm a:hover {
+  text-decoration: underline;
+}
+
+/* Optional Error Message Styling */
+.loginForm p > p {
+  color: red;
+  margin-top: 0.5rem;
+}
