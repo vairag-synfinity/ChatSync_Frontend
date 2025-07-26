@@ -11,7 +11,6 @@ export default function HomePage(){
         <>
         <Header/>
         <AllChat/>
-        // <VideoCall/> 
         <AudioCall/> 
         </>
     )
