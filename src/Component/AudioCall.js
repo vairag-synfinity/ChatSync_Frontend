@@ -15,6 +15,7 @@ function AudioCall() {
   const [incoming, setIncoming] = useState(null);
   const [connected, setConnected] = useState(false);
   const [callStatus, setCallStatus] = useState('idle');
+  const [currentCaller, setCurrentCaller] = useState(null);
 
   const localAudioRef = useRef();
   const remoteAudioRef = useRef();
@@ -24,7 +25,10 @@ function AudioCall() {
   useEffect(() => {
     if (username) socket.emit('register', username);
 
-    socket.on('incoming-call', ({ from, offer }) => setIncoming({ from, offer }));
+    socket.on('incoming-call', ({ from, offer }) => {
+      setIncoming({ from, offer });
+      setCurrentCaller(from);
+    });
 
     socket.on('call-answered', async ({ answer }) => {
       if (peerRef.current) {
@@ -38,10 +42,17 @@ function AudioCall() {
       if (peerRef.current) await peerRef.current.addIceCandidate(new RTCIceCandidate(candidate));
     });
 
+    socket.on('call-rejected', () => endCall());
+    socket.on('call-ended', () => endCall());
+    socket.on('user-not-found', () => endCall());
+
     return () => {
       socket.off('incoming-call');
       socket.off('call-answered');
       socket.off('ice-candidate');
+      socket.off('call-rejected');
+      socket.off('call-ended');
+      socket.off('user-not-found');
     };
   }, [username]);
 
@@ -50,8 +61,12 @@ function AudioCall() {
 
     peer.onicecandidate = (e) => {
       if (e.candidate) {
-        const target = incoming ? incoming.from : targetUser;
-        socket.emit('ice-candidate', { to: target, candidate: e.candidate });
+        const target = currentCaller || targetUser;
+        socket.emit('ice-candidate', { 
+          to: target, 
+          candidate: e.candidate,
+          from: username
+        });
       }
     };
 
@@ -84,6 +99,7 @@ function AudioCall() {
   const startCall = async () => {
     if (!targetUser.trim()) return;
     setCallStatus('calling');
+    setCurrentCaller(targetUser);
     peerRef.current = setupPeerConnection();
     const stream = await getMediaStream();
     stream.getTracks().forEach(track => peerRef.current.addTrack(track, stream));
@@ -100,11 +116,18 @@ function AudioCall() {
     await peerRef.current.setRemoteDescription(new RTCSessionDescription(incoming.offer));
     const answer = await peerRef.current.createAnswer();
     await peerRef.current.setLocalDescription(answer);
-    socket.emit('answer-call', { to: incoming.from, answer });
+    socket.emit('answer-call', { 
+      to: incoming.from, 
+      answer,
+      from: username
+    });
     setIncoming(null);
   };
 
   const endCall = () => {
+    if (currentCaller && callStatus !== 'idle') {
+      socket.emit('end-call', { to: currentCaller, from: username });
+    }
     if (peerRef.current) {
       peerRef.current.close();
       peerRef.current = null;
@@ -118,22 +141,13 @@ function AudioCall() {
     setConnected(false);
     setCallStatus('idle');
     setIncoming(null);
+    setCurrentCaller(null);
   };
-
-  // if (!username) {
-  //   return (
-  //     <div style={{ padding: '20px' }}>
-  //       <h2>Audio Call App</h2>
-  //       <p>Set username first in console:</p>
-  //       <code>localStorage.setItem('username', 'yourname')</code>
-  //     </div>
-  //   );
-  // }
 
   return (
     <div style={{ padding: '20px' }}>
       <h2>Audio Call</h2>
-      <h3>Username:{username}</h3>
+      <h3>Username: {username}</h3>
       <p><strong>Status:</strong> {callStatus}</p>
 
       {callStatus === 'idle' && (
