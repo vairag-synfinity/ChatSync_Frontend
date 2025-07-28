@@ -62,20 +62,20 @@ function AudioCall() {
     peer.onicecandidate = (e) => {
       if (e.candidate) {
         const target = currentCaller || targetUser;
-        socket.emit('ice-candidate', { 
-          to: target, 
+        socket.emit('ice-candidate', {
+          to: target,
           candidate: e.candidate,
           from: username
         });
       }
     };
 
-    peer.ontrack = (e) => {
-      if (remoteAudioRef.current) {
-        remoteAudioRef.current.srcObject = e.streams[0];
-        remoteAudioRef.current.play().catch(() => {});
-      }
+    peer.ontrack = (event) => {
+      const remoteStream = new MediaStream();
+      remoteStream.addTrack(event.track);
+      remoteAudioRef.current.srcObject = remoteStream;
     };
+
 
     peer.onconnectionstatechange = () => {
       if (peer.connectionState === 'disconnected' || peer.connectionState === 'failed') {
@@ -116,11 +116,14 @@ function AudioCall() {
     await peerRef.current.setRemoteDescription(new RTCSessionDescription(incoming.offer));
     const answer = await peerRef.current.createAnswer();
     await peerRef.current.setLocalDescription(answer);
-    socket.emit('answer-call', { 
-      to: incoming.from, 
+    socket.emit('answer-call', {
+      to: incoming.from,
       answer,
       from: username
     });
+    setConnected(true);
+    setCallStatus('connected');
+
     setIncoming(null);
   };
 
@@ -166,7 +169,11 @@ function AudioCall() {
         <div style={{ marginTop: '10px' }}>
           <p>Incoming call from: {incoming.from}</p>
           <button onClick={answerCall} style={{ marginRight: '5px' }}>Answer</button>
-          <button onClick={() => setIncoming(null)}>Reject</button>
+          <button onClick={() => {
+            socket.emit('reject-call', { to: incoming.from, from: username });
+            setIncoming(null);
+          }}>Reject</button>
+
         </div>
       )}
 
