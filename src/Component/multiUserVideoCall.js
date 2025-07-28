@@ -2,12 +2,16 @@ import { useEffect, useRef, useState } from 'react';
 import io from 'socket.io-client';
 
 const socket = io(process.env.REACT_APP_BACKEND_URL);
-const servers = {
+const servers = new RTCPeerConnection({
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' }
+    {
+      urls: 'turn:vairag.synfinity.com:3000',
+      username: 'vairag.synfinity',
+      credential: 'testchatsync'
+    }
   ]
-};
+});
 
 export default function GroupVideoCall() {
   const username = localStorage.getItem('username');
