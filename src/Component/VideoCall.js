@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import io from 'socket.io-client';
 
 const socket = io(process.env.REACT_APP_BACKEND_URL);
-const server = new RTCPeerConnection({
+const servers = new RTCPeerConnection({
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     {
