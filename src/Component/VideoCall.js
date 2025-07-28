@@ -106,9 +106,13 @@ function VideoCall() {
         await peerRef.current.setRemoteDescription(new RTCSessionDescription(incoming.offer));
         const answer = await peerRef.current.createAnswer();
         await peerRef.current.setLocalDescription(answer);
-        socket.emit('answer-call', { to: incoming.from, answer });
-        setIncoming(null);
-    };
+         socket.emit('answer-call', { 
+      to: incoming.from, 
+      answer,
+      from: username
+    });
+    setIncoming(null);
+  };
 
     const endCall = () => {
         if (peerRef.current) {

@@ -20,7 +20,7 @@ function RegisterForm() {
       const res = await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/auth/register`, { username, gmail, password  });
      localStorage.setItem('token', res.data.token);  // Save token in localStorage
      localStorage.setItem('username', res.data.user.username);  // Save username in localStorage
-    navigate('/chat'); 
+    navigate('/allchat'); 
       
       setMessage(res.data.message);
     } catch (err) {
