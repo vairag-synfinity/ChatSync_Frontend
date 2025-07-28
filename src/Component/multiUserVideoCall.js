@@ -4,7 +4,7 @@ import io from 'socket.io-client';
 const socket = io(process.env.REACT_APP_BACKEND_URL);
 const servers = {
   iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
+    // { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' }
   ]
 };
