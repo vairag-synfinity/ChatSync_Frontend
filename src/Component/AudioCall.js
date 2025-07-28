@@ -83,6 +83,8 @@ function AudioCall() {
 
 
     peer.onconnectionstatechange = () => {
+        console.log("ICE state:", peer.iceConnectionState);
+
       if (peer.connectionState === 'disconnected' || peer.connectionState === 'failed') {
         endCall();
       }
