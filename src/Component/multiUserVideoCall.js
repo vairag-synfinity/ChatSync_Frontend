@@ -1,17 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import io from 'socket.io-client';
 
-const socket = io("https://chatsync-backend-d90p.onrender.com");
-const servers = new RTCPeerConnection({
+const socket = io(process.env.REACT_APP_BACKEND_URL);
+const servers = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
-    {
-      urls: 'turn:vairag.synfinity.com:3000',
-      username: 'vairag.synfinity',
-      credential: 'testchatsync'
-    }
+    { urls: 'stun:stun1.l.google.com:19302' }
   ]
-});
+};
+
 
 export default function GroupVideoCall() {
   const username = localStorage.getItem('username');
