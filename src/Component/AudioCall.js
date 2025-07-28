@@ -5,14 +5,9 @@ const socket = io(process.env.REACT_APP_BACKEND_URL);
 const servers = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
-    {
-      urls: 'turn:openrelay.metered.ca:80',
-      username: 'openrelayproject',
-      credential: 'openrelayproject'
-    }
+    { urls: 'stun:stun1.l.google.com:19302' }
   ]
 };
-
 
 function AudioCall() {
   const username = localStorage.getItem('username');
@@ -86,8 +81,6 @@ const [searchTimeout, setSearchTimeout] = useState(null);
 
 
     peer.onconnectionstatechange = () => {
-        console.log("ICE state:", peer.iceConnectionState);
-
       if (peer.connectionState === 'disconnected' || peer.connectionState === 'failed') {
         endCall();
       }
