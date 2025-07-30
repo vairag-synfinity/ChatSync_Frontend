@@ -78,6 +78,11 @@ export default function GroupAudioCall() {
     localAudioRef.current.srcObject = stream;
     localAudioRef.current.muted = true;
     localStreamRef.current = stream;
+    console.log('🎤📷 Tracks from local stream:', stream.getTracks());
+stream.getTracks().forEach(track => {
+  console.log(`Track kind: ${track.kind}, enabled: ${track.enabled}`);
+});
+
     return stream;
   };
 
