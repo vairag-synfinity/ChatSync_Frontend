@@ -2,12 +2,18 @@ import { useEffect, useRef, useState } from 'react';
 import io from 'socket.io-client';
 
 const socket = io(process.env.REACT_APP_BACKEND_URL);
-const servers = {
-    iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
-    ]
-};
+const servers = new RTCPeerConnection({
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    {
+      urls: 'turn:vairag.synfinity.com:3000',
+      username: 'vairag.synfinity',
+      credential: 'testchatsync'
+    }
+  ]
+});
+
+
 
 function VideoCall() {
     const username = localStorage.getItem('username');
