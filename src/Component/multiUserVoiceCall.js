@@ -10,7 +10,13 @@ const socket = io(process.env.REACT_APP_BACKEND_URL, {
 const servers = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' }
+    { urls: 'stun:stun1.l.google.com:19302' },
+    // Add your ExpressTURN details here
+    {
+      urls: 'turn:relay1.expressturn.com:3480', // Make sure to use 'turn:' prefix
+      username: '000000002069242303',
+      credential: 'IQ/kxBjlRt+68Hrq0abr0OhhtY4='
+    }
   ]
 };
 
