@@ -85,14 +85,20 @@ export default function GroupAudioCall() {
     const peer = new RTCPeerConnection(servers);
 
     peer.onicecandidate = (e) => {
-      if (e.candidate) {
-        socket.emit('ice-candidate', {
-          to: targetUsername,
-          from: username,
-          candidate: e.candidate
-        });
-      }
-    };
+  if (e.candidate) {
+    console.log('📤 Sending ICE to', targetUsername);
+    socket.emit('ice-candidate', { to: targetUsername, from: username, candidate: e.candidate });
+  }
+};
+
+socket.on('ice-candidate', async ({ from, candidate }) => {
+  console.log('📥 Received ICE from', from);
+  const peer = peersRef.current[from];
+  if (peer && candidate) {
+    await peer.addIceCandidate(new RTCIceCandidate(candidate));
+  }
+});
+
 
     peer.ontrack = (e) => {
       let stream = remoteStreamsRef.current[targetUsername];
