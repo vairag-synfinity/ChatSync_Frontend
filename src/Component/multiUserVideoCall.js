@@ -236,7 +236,7 @@ export default function GroupVideoCall() {
             />
           </div>
 
-          {remoteVideos.length === 0 ? (
+          {remoteVideos.length > 0 ? (
             <>
               <h3 className="section-title">
                 <span>👥</span>
@@ -255,6 +255,9 @@ export default function GroupVideoCall() {
                   </div>
                 ))}
               </div>
+                 <button className="end-call-btn" onClick={() => setRemoteVideos(0)}>
+                End Call
+              </button>
               
             </>
           ) : (
