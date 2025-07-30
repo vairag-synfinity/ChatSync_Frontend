@@ -255,9 +255,7 @@ export default function GroupVideoCall() {
                   </div>
                 ))}
               </div>
-              // <button className="end-call-btn" onClick={() => setRemoteVideos(0)}>
-              //   End Call
-              // </button>
+              
             </>
           ) : (
             <div className="empty-state">
