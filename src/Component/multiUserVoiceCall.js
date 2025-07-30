@@ -2,7 +2,11 @@ import { useEffect, useRef, useState } from 'react';
 import io from 'socket.io-client';
 import '../css/voiceCall.css';
 
-const socket = io(process.env.REACT_APP_BACKEND_URL);
+const socket = io(process.env.REACT_APP_BACKEND_URL, {
+  withCredentials: true,
+  transports: ['websocket']
+});
+
 const servers = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
