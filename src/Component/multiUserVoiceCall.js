@@ -105,12 +105,21 @@ socket.on('ice-candidate', async ({ from, candidate }) => {
 });
 
 
-    peer.ontrack = (e) => {
-      let stream = remoteStreamsRef.current[targetUsername];
-      if (!stream) {
-        stream = new MediaStream();
-        remoteStreamsRef.current[targetUsername] = stream;
-      }
+   peer.ontrack = (event) => {
+  console.log('🎤 ontrack called for:', event.track.kind);
+
+  // Check if track is live
+  console.log('📊 Track enabled:', event.track.enabled, '| muted:', event.track.muted);
+
+  const stream = new MediaStream();
+  stream.addTrack(event.track); // Add the individual audio track
+
+  const audio = new Audio();
+  audio.srcObject = stream;
+  audio.autoplay = true;
+  audio.play().catch(console.error);
+};
+
 
       stream.addTrack(e.track);
       setRemoteAudios(prev => [
