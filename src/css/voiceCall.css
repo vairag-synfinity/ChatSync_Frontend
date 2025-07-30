@@ -1,7 +1,7 @@
   .group-call-container {
     /* max-width: 800px; */
     margin: 0 auto;
-    padding: 20px;
+    /* padding: 20px; */
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     /* background: linear-gradient(135deg, #667eea 0%, #3f689b 100%); */
     height: 88vh;
@@ -15,7 +15,7 @@
   }
 
   .header h2 {
-    font-size: 2rem;
+    font-size: 1.5rem;
     margin-bottom: 10px;
     text-shadow: 0 2px 4px rgba(0,0,0,0.3);
   }
@@ -207,9 +207,7 @@
   }
 
   @media (max-width: 768px) {
-    .group-call-container {
-      padding: 15px;
-    }
+    
     
     .header h2 {
       font-size: 2rem;

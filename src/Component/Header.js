@@ -1,4 +1,4 @@
-import Logo from '../logo.svg';
+import Logo from '../logo.png';
 import ProfilePicture from '../profile.png';
 import { useNavigate, NavLink } from 'react-router-dom';
 
@@ -7,6 +7,7 @@ export default function Header() {
 
   const handleLogout = () => {
     localStorage.removeItem('token');
+    localStorage.removeItem('username');
     navigate('/login');
   };
 
@@ -22,31 +23,37 @@ export default function Header() {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '5px 15px',
+    padding: '7px 15px',
     backgroundColor: '#f9f9f9',
     borderBottom: '1px solid #ddd',
   };
 
   const logoStyle = {
-    width: '50px',
+    width: '60PX',
+    height: '50PX',
+  };
+
+  const profilePictureStyle = {
+    width: '60px',
     height: '50px',
   };
 
   const titleStyle = {
-    fontSize: '1.2rem',
+    fontSize: '2vw',
     fontWeight: 'bold',
     color: '#333',
-    margin: '0 10px',
+    margin: '0 1px',
   };
 
   const linkContainer = {
 
     display: 'flex',
-    gap: '15px',
+    fontSize: '1.2vw',
+    gap: '20px',
     alignItems: 'center',
-    
 
-    
+
+
   };
 
   const linkStyle = ({ isActive }) => ({
@@ -68,13 +75,14 @@ export default function Header() {
             {link.label}
           </NavLink>
         ))}
-        <img
-          style={{ ...logoStyle, cursor: 'pointer' }}
+       
+      </div>
+       <img
+          style={{ ...profilePictureStyle, cursor: 'pointer' }}
           onClick={handleLogout}
           src={ProfilePicture}
           alt="profile"
         />
-      </div>
     </nav>
   );
 }

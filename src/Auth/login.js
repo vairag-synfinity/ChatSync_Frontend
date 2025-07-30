@@ -17,6 +17,7 @@ function LoginForm() {
     try {
       const res = await axios.post(`${process.env.REACT_APP_BACKEND_URL}/api/auth/login`, { username, password });
       localStorage.setItem('token', res.data.token);
+       localStorage.setItem('username', res.data.user.username); 
       navigate('/allchat');
 
       // console.log(res+"------------------------------")

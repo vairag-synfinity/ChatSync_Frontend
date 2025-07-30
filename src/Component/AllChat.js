@@ -21,7 +21,7 @@ export default function AllChat() {
     });
 
     socket.on('receive_private_message', (data) => {
-      console.log('Received private message:', data);
+      // console.log('Received private message:', data);                                    
       setPrivateChats((prev) => {
         const newChats = new Map(prev);
         const chat = newChats.get(data.username) || [];
