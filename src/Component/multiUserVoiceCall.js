@@ -78,11 +78,6 @@ export default function GroupAudioCall() {
     localAudioRef.current.srcObject = stream;
     localAudioRef.current.muted = true;
     localStreamRef.current = stream;
-    console.log('🎤📷 Tracks from local stream:', stream.getTracks());
-stream.getTracks().forEach(track => {
-  console.log(`Track kind: ${track.kind}, enabled: ${track.enabled}`);
-});
-
     return stream;
   };
 
@@ -90,36 +85,21 @@ stream.getTracks().forEach(track => {
     const peer = new RTCPeerConnection(servers);
 
     peer.onicecandidate = (e) => {
-  if (e.candidate) {
-    console.log('📤 Sending ICE to', targetUsername);
-    socket.emit('ice-candidate', { to: targetUsername, from: username, candidate: e.candidate });
-  }
-};
+      if (e.candidate) {
+        socket.emit('ice-candidate', {
+          to: targetUsername,
+          from: username,
+          candidate: e.candidate
+        });
+      }
+    };
 
-socket.on('ice-candidate', async ({ from, candidate }) => {
-  console.log('📥 Received ICE from', from);
-  const peer = peersRef.current[from];
-  if (peer && candidate) {
-    await peer.addIceCandidate(new RTCIceCandidate(candidate));
-  }
-});
-
-
-   peer.ontrack = (event) => {
-  console.log('🎤 ontrack called for:', event.track.kind);
-
-  // Check if track is live
-  console.log('📊 Track enabled:', event.track.enabled, '| muted:', event.track.muted);
-
-  const stream = new MediaStream();
-  stream.addTrack(event.track); // Add the individual audio track
-
-  const audio = new Audio();
-  audio.srcObject = stream;
-  audio.autoplay = true;
-  audio.play().catch(console.error);
-};
-
+    peer.ontrack = (e) => {
+      let stream = remoteStreamsRef.current[targetUsername];
+      if (!stream) {
+        stream = new MediaStream();
+        remoteStreamsRef.current[targetUsername] = stream;
+      }
 
       stream.addTrack(e.track);
       setRemoteAudios(prev => [
