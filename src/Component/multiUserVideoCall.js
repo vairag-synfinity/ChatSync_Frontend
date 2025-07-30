@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import io from 'socket.io-client';
+import '../css/videoCall.css';
 
 const socket = io(process.env.REACT_APP_BACKEND_URL);
 const servers = {
   iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' }
   ]
 };
+
 
 export default function GroupVideoCall() {
   const username = localStorage.getItem('username');
@@ -23,31 +24,30 @@ export default function GroupVideoCall() {
   const remoteVideosRef = useRef({});
   const [remoteVideos, setRemoteVideos] = useState([]);
 
- useEffect(() => {
-  socket.emit('register', username);
+  useEffect(() => {
+    socket.emit('register', username);
 
-  socket.on('incoming-call', async ({ from, offer }) => {
-    console.log(`Incoming call from ${from}`);
-    setIncoming({ from, offer }); // shows UI button to accept
-  });
+    socket.on('incoming-call', async ({ from, offer }) => {
+      console.log(`Incoming call from ${from}`);
+      setIncoming({ from, offer });
+    });
 
-  socket.on('call-answered', async ({ from, answer }) => {
-    const peer = peersRef.current[from];
-    if (peer) await peer.setRemoteDescription(new RTCSessionDescription(answer));
-  });
+    socket.on('call-answered', async ({ from, answer }) => {
+      const peer = peersRef.current[from];
+      if (peer) await peer.setRemoteDescription(new RTCSessionDescription(answer));
+    });
 
-  socket.on('ice-candidate', async ({ from, candidate }) => {
-    const peer = peersRef.current[from];
-    if (peer) await peer.addIceCandidate(new RTCIceCandidate(candidate));
-  });
+    socket.on('ice-candidate', async ({ from, candidate }) => {
+      const peer = peersRef.current[from];
+      if (peer) await peer.addIceCandidate(new RTCIceCandidate(candidate));
+    });
 
-  return () => {
-    socket.off('incoming-call');
-    socket.off('call-answered');
-    socket.off('ice-candidate');
-  };
-}, []);
-
+    return () => {
+      socket.off('incoming-call');
+      socket.off('call-answered');
+      socket.off('ice-candidate');
+    };
+  }, [username]);
 
   const toggleUser = (user) => {
     setSelectedUsers(prev =>
@@ -64,7 +64,6 @@ export default function GroupVideoCall() {
     try {
       const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/users/search?q=${q}`);
       const data = await res.json();
-    //   console.log('Search results:', data);
       setSearchResults(data);
     } catch (err) {
       console.error('Search failed', err);
@@ -73,7 +72,7 @@ export default function GroupVideoCall() {
 
   const getLocalStream = async () => {
     if (localStreamRef.current) return localStreamRef.current;
-const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
     localVideoRef.current.srcObject = stream;
     localVideoRef.current.muted = true;
     localStreamRef.current = stream;
@@ -94,18 +93,18 @@ const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: t
     };
 
     peer.ontrack = (e) => {
-  let stream = remoteVideosRef.current[targetUsername];
-  if (!stream) {
-    stream = new MediaStream();
-    remoteVideosRef.current[targetUsername] = stream;
-  }
+      let stream = remoteVideosRef.current[targetUsername];
+      if (!stream) {
+        stream = new MediaStream();
+        remoteVideosRef.current[targetUsername] = stream;
+      }
 
-  stream.addTrack(e.track);
-  setRemoteVideos(prev => [
-    ...prev.filter(v => v.id !== targetUsername),
-    { id: targetUsername, stream }
-  ]);
-};
+      stream.addTrack(e.track);
+      setRemoteVideos(prev => [
+        ...prev.filter(v => v.id !== targetUsername),
+        { id: targetUsername, stream }
+      ]);
+    };
 
     peersRef.current[targetUsername] = peer;
     return peer;
@@ -142,62 +141,130 @@ const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: t
     setCallStatus('connected');
   };
 
+  const getStatusText = () => {
+    switch (callStatus) {
+      case 'calling': return 'Calling...';
+      case 'connected': return 'Connected';
+      default: return 'Ready to call';
+    }
+  };
+
   return (
-    <div style={{ padding: 20 }}>
-      <h2>Group Video Call</h2>
-      <p>Logged in as: <strong>{username}</strong></p>
-
-      <input
-        placeholder="Search users"
-        value={searchQuery}
-        onChange={(e) => searchUsers(e.target.value)}
-        style={{ padding: 5, width: 200 }}
-      />
-
-      <ul style={{ listStyle: 'none', padding: 0 }}>
-        {searchResults.map(user => (
-          <li key={user._id}>
-            <label>
-              <input
-                type="checkbox"
-                checked={selectedUsers.some(u => u.username === user.username)}
-                onChange={() => toggleUser(user)}
-              />
-              {user.username}
-            </label>
-          </li>
-        ))}
-      </ul>
-
-      <button onClick={startGroupCall} disabled={selectedUsers.length === 0}>
-        Start Call with Selected
-      </button>
-
-      {incoming && (
-        <div>
-          <p>Incoming call from {incoming.from}</p>
-          <button onClick={answerCall}>Answer</button>
+    <>
+     <div className="video-call-container">
+        <div className="header">
+          <h2>Group Video Call</h2>
         </div>
-      )}
 
-      <div style={{ marginTop: 20 }}>
-        <h4>Local Video</h4>
-<video ref={localVideoRef} autoPlay muted style={{ width: 200 }} />
+        <div className="controls-panel">
+          <div className="user-info-card">
+            <h3 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>User Status</h3>
+            <div className={`status-indicator status-${callStatus}`}>
+              <span className="status-dot"></span>
+            </div>
+              <span><strong>{username}</strong> - {getStatusText()}</span>
 
-<h4>Remote Videos</h4>
-{remoteVideos.map(({ id, stream }) => (
-  <div key={id}>
-    <p>{id}</p>
-    <video
-      autoPlay
-      playsInline
-      style={{ width: 200 }}
-      ref={(el) => { if (el) el.srcObject = stream; }}
-    />
-  </div>
-))}
+          </div>
 
+          <div className="search-card">
+            <h3 style={{ margin: '0 0 15px 0', color: '#2c3e50' }}>Add Participants</h3>
+            <input
+              className="search-input"
+              placeholder="Search users to invite..."
+              value={searchQuery}
+              onChange={(e) => searchUsers(e.target.value)}
+            />
+
+            <ul className="users-list">
+              {searchResults.map(user => (
+                <li 
+                  key={user._id} 
+                  className={`user-item ${selectedUsers.some(u => u.username === user.username) ? 'selected' : ''}`}
+                  onClick={() => toggleUser(user)}
+                >
+                  <label className="user-label">
+                    <input
+                      className="user-checkbox"
+                      type="checkbox"
+                      checked={selectedUsers.some(u => u.username === user.username)}
+                      onChange={() => toggleUser(user)}
+                    />
+                    {user.username}
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        <div className="call-controls">
+          <button 
+            className="start-call-btn" 
+            onClick={startGroupCall} 
+            disabled={selectedUsers.length === 0}
+          >
+            {selectedUsers.length > 0 
+              ? `🚀 Start Video Call (${selectedUsers.length} participant${selectedUsers.length > 1 ? 's' : ''})`
+              : '📱 Select participants to start call'
+            }
+          </button>
+        </div>
+
+        {incoming && (
+          <div className="incoming-call">
+            <p>📞 Incoming video call from <strong>{incoming.from}</strong></p>
+            <button className="answer-btn" onClick={answerCall}>
+              ✅ Answer Call
+            </button>
+          </div>
+        )}
+
+        <div className="video-section">
+          <div className="local-video-container">
+            <h3 className="section-title">
+              <span>📷</span>
+              Your Video
+            </h3>
+            <video 
+              ref={localVideoRef} 
+              autoPlay 
+              muted 
+              playsInline 
+              className="local-video"
+            />
+          </div>
+
+          {remoteVideos.length > 0 ? (
+            <>
+              <h3 className="section-title">
+                <span>👥</span>
+                Participants ({remoteVideos.length})
+              </h3>
+              <div className="remote-videos-grid">
+                {remoteVideos.map(({ id, stream }) => (
+                  <div key={id} className="remote-video-item">
+                    <h5>👤 {id}</h5>
+                    <video
+                      autoPlay
+                      playsInline
+                      className="remote-video"
+                      ref={(el) => { if (el) el.srcObject = stream; }}
+                    />
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="empty-state">
+              <h3 className="section-title">
+                <span>👥</span>
+                Participants
+              </h3>
+              <p>No participants yet. Start a call to see other participants here.</p>
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

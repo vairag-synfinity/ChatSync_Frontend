@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import io from 'socket.io-client';
+import '../css/voiceCall.css';
 
 const socket = io(process.env.REACT_APP_BACKEND_URL);
 const servers = {
@@ -8,6 +9,8 @@ const servers = {
     { urls: 'stun:stun1.l.google.com:19302' }
   ]
 };
+
+
 
 export default function GroupAudioCall() {
   const username = localStorage.getItem('username');
@@ -23,31 +26,30 @@ export default function GroupAudioCall() {
   const remoteStreamsRef = useRef({});
   const [remoteAudios, setRemoteAudios] = useState([]);
 
- useEffect(() => {
-  socket.emit('register', username);
+  useEffect(() => {
+    socket.emit('register', username);
 
-  socket.on('incoming-call', async ({ from, offer }) => {
-    console.log(`Incoming call from ${from}`);
-    setIncoming({ from, offer }); // shows UI button to accept
-  });
+    socket.on('incoming-call', async ({ from, offer }) => {
+      console.log(`Incoming call from ${from}`);
+      setIncoming({ from, offer });
+    });
 
-  socket.on('call-answered', async ({ from, answer }) => {
-    const peer = peersRef.current[from];
-    if (peer) await peer.setRemoteDescription(new RTCSessionDescription(answer));
-  });
+    socket.on('call-answered', async ({ from, answer }) => {
+      const peer = peersRef.current[from];
+      if (peer) await peer.setRemoteDescription(new RTCSessionDescription(answer));
+    });
 
-  socket.on('ice-candidate', async ({ from, candidate }) => {
-    const peer = peersRef.current[from];
-    if (peer) await peer.addIceCandidate(new RTCIceCandidate(candidate));
-  });
+    socket.on('ice-candidate', async ({ from, candidate }) => {
+      const peer = peersRef.current[from];
+      if (peer) await peer.addIceCandidate(new RTCIceCandidate(candidate));
+    });
 
-  return () => {
-    socket.off('incoming-call');
-    socket.off('call-answered');
-    socket.off('ice-candidate');
-  };
-}, []);
-
+    return () => {
+      socket.off('incoming-call');
+      socket.off('call-answered');
+      socket.off('ice-candidate');
+    };
+  }, [username]);
 
   const toggleUser = (user) => {
     setSelectedUsers(prev =>
@@ -64,7 +66,6 @@ export default function GroupAudioCall() {
     try {
       const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/users/search?q=${q}`);
       const data = await res.json();
-    //   console.log('Search results:', data);
       setSearchResults(data);
     } catch (err) {
       console.error('Search failed', err);
@@ -142,60 +143,97 @@ export default function GroupAudioCall() {
     setCallStatus('connected');
   };
 
+  const getStatusText = () => {
+    switch (callStatus) {
+      case 'calling': return 'Calling...';
+      case 'connected': return 'Connected';
+      default: return 'Ready';
+    }
+  };
+
   return (
-    <div style={{ padding: 20 }}>
-      <h2>Group Audio Call</h2>
-      <p>Logged in as: <strong>{username}</strong></p>
-
-      <input
-        placeholder="Search users"
-        value={searchQuery}
-        onChange={(e) => searchUsers(e.target.value)}
-        style={{ padding: 5, width: 200 }}
-      />
-
-      <ul style={{ listStyle: 'none', padding: 0 }}>
-        {searchResults.map(user => (
-          <li key={user._id}>
-            <label>
-              <input
-                type="checkbox"
-                checked={selectedUsers.some(u => u.username === user.username)}
-                onChange={() => toggleUser(user)}
-              />
-              {user.username}
-            </label>
-          </li>
-        ))}
-      </ul>
-
-      <button onClick={startGroupCall} disabled={selectedUsers.length === 0}>
-        Start Call with Selected
-      </button>
-
-      {incoming && (
-        <div>
-          <p>Incoming call from {incoming.from}</p>
-          <button onClick={answerCall}>Answer</button>
+    <>
+      <div className="group-call-container">
+        <div className="header">
+          <h2>Group Audio Call</h2>
         </div>
-      )}
 
-      <div style={{ marginTop: 20 }}>
-        <h4>Local Audio</h4>
-        <audio ref={localAudioRef} autoPlay muted />
+        <div className="user-info">
+          <p>
+            <span className={`status-indicator status-${callStatus}`}></span>
+            <strong>Logged in as: {username}</strong> - {getStatusText()}
+          </p>
+        </div>
 
-        <h4>Remote Audio</h4>
-        {remoteAudios.map(({ id, stream }) => (
-          <div key={id}>
-            <p>{id}</p>
-            <audio
-              autoPlay
-              controls
-              ref={(el) => { if (el) el.srcObject = stream; }}
-            />
+        <div className="search-section">
+          <input
+            className="search-input"
+            placeholder="Search users to add to call..."
+            value={searchQuery}
+            onChange={(e) => searchUsers(e.target.value)}
+          />
+
+          <ul className="users-list">
+            {searchResults.map(user => (
+              <li key={user._id} className="user-item" onClick={() => toggleUser(user)}>
+                <label className="user-label">
+                  <input
+                    className="user-checkbox"
+                    type="checkbox"
+                    checked={selectedUsers.some(u => u.username === user.username)}
+                    onChange={() => toggleUser(user)}
+                  />
+                  {user.username}
+                </label>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="call-controls">
+          <button 
+            className="start-call-btn" 
+            onClick={startGroupCall} 
+            disabled={selectedUsers.length === 0}
+          >
+            {selectedUsers.length > 0 
+              ? `Start Call with ${selectedUsers.length} user${selectedUsers.length > 1 ? 's' : ''}`
+              : 'Select users to start call'
+            }
+          </button>
+        </div>
+
+        {incoming && (
+          <div className="incoming-call">
+            <p>📞 Incoming call from <strong>{incoming.from}</strong></p>
+            <button className="answer-btn" onClick={answerCall}>
+              Answer Call
+            </button>
           </div>
-        ))}
+        )}
+
+        <div className="audio-section">
+          <h4>🎤 Local Audio</h4>
+          <audio ref={localAudioRef} autoPlay muted />
+
+          {remoteAudios.length > 0 && (
+            <>
+              <h4>🔊 Remote Audio ({remoteAudios.length} participant{remoteAudios.length > 1 ? 's' : ''})</h4>
+              {remoteAudios.map(({ id, stream }) => (
+                <div key={id} className="remote-audio-item">
+                  <p>👤 {id}</p>
+                  <audio
+                    className="audio-controls"
+                    autoPlay
+                    controls
+                    ref={(el) => { if (el) el.srcObject = stream; }}
+                  />
+                </div>
+              ))}
+            </>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }

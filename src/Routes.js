@@ -6,8 +6,8 @@ import HomePage from "./Home";
 import AllChat from "./Component/AllChat";
 import GroupChat from "./Component/GroupChat";
 // import AudioCall from "./Component/AudioCall";
-import VideoCall from "./Component/VideoCall";
-// import GroupAudioCall from "./Component/multiUserVoiceCall";
+// import VideoCall from "./Component/VideoCall";
+import GroupAudioCall from "./Component/multiUserVoiceCall";
 import GroupVideoCall from "./Component/multiUserVideoCall";
 
 function ProtectedLayout() {
@@ -30,8 +30,8 @@ export default function AppRoutes() {
           <Route path="/" element={<Navigate to="/allchat" />} />
           <Route path="/allchat" element={<AllChat />} />
           <Route path="/groupchat" element={<GroupChat />} />
-          <Route path="/audiocall" element={<GroupVideoCall />} />
-          <Route path="/videocall" element={<VideoCall />} />
+          <Route path="/audiocall" element={<GroupAudioCall />} />
+          <Route path="/videocall" element={<GroupVideoCall />} />
           {/* <Route path="/groupaudiocall" element={<GroupAudioCall />} /> */}
           {/* <Route path="/groupaudiocall" element={<GroupVideoCall />} /> */}
         </Route>
