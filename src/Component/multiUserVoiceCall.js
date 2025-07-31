@@ -19,6 +19,7 @@ export default function GroupAudioCall() {
   const [callStatus, setCallStatus] = useState('idle');
   const [currentRoom, setCurrentRoom] = useState(null);
   const [roomParticipants, setRoomParticipants] = useState([]);
+  const [autoAcceptCalls, setAutoAcceptCalls] = useState(false);
 
   const localAudioRef = useRef();
   const localStreamRef = useRef();
@@ -45,7 +46,15 @@ export default function GroupAudioCall() {
     // Handle peer-to-peer connections
     socket.on('incoming-call', async ({ from, offer, roomId }) => {
       console.log(`Incoming call from ${from} in room ${roomId}`);
-      setIncoming({ from, offer, roomId });
+      
+      // If already in a call/room and it's the same room, auto-accept
+      if (currentRoom === roomId || autoAcceptCalls) {
+        console.log(`Auto-accepting call from ${from}`);
+        await handleAutoAnswer(from, offer, roomId);
+      } else {
+        // First time call - show answer button
+        setIncoming({ from, offer, roomId });
+      }
     });
 
     socket.on('call-answered', async ({ from, answer }) => {
@@ -190,6 +199,8 @@ export default function GroupAudioCall() {
     const participantUsernames = selectedUsers.map(user => user.username);
     participantUsernames.push(username); // Add self to participants
     
+    setAutoAcceptCalls(true); // Enable auto-accept for the call creator
+    
     socket.emit('create-room', {
       participants: participantUsernames,
       creator: username
@@ -199,9 +210,8 @@ export default function GroupAudioCall() {
     await getLocalStream();
   };
 
-  const answerCall = async () => {
-    const { from, offer, roomId } = incoming;
-    setCurrentRoom(roomId);
+  const handleAutoAnswer = async (from, offer, roomId) => {
+    if (!currentRoom) setCurrentRoom(roomId);
     
     const peer = createPeerConnection(from);
     const stream = await getLocalStream();
@@ -221,11 +231,22 @@ export default function GroupAudioCall() {
       roomId 
     });
 
+    if (!roomParticipants.includes(from)) {
+      setRoomParticipants(prev => [...prev, from]);
+    }
+    
+    setCallStatus('connected');
+  };
+
+  const answerCall = async () => {
+    const { from, offer, roomId } = incoming;
+    setAutoAcceptCalls(true); // Enable auto-accept for future calls
+    await handleAutoAnswer(from, offer, roomId);
+
     // Join the room
     socket.emit('join-room', { roomId, username });
     
     setIncoming(null);
-    setCallStatus('connected');
   };
 
   const endCall = () => {
@@ -254,6 +275,7 @@ export default function GroupAudioCall() {
     setCurrentRoom(null);
     setRoomParticipants([]);
     setCallStatus('idle');
+    setAutoAcceptCalls(false); // Reset auto-accept
   };
 
   const getStatusText = () => {
