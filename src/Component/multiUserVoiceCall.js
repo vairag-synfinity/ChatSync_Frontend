@@ -2,25 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import io from 'socket.io-client';
 import '../css/voiceCall.css';
 
-const socket = io(process.env.REACT_APP_BACKEND_URL, {
-  withCredentials: true,
-  transports: ['websocket']
-});
-
+const socket = io(process.env.REACT_APP_BACKEND_URL);
 const servers = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    // Add your ExpressTURN details here
-    {
-      urls: 'turn:relay1.expressturn.com:3480', // Make sure to use 'turn:' prefix
-      username: '000000002069242303',
-      credential: 'IQ/kxBjlRt+68Hrq0abr0OhhtY4='
-    }
+    { urls: 'stun:stun1.l.google.com:19302' }
   ]
 };
-
-
 
 export default function GroupAudioCall() {
   const username = localStorage.getItem('username');
@@ -29,6 +17,8 @@ export default function GroupAudioCall() {
   const [selectedUsers, setSelectedUsers] = useState([]);
   const [incoming, setIncoming] = useState(null);
   const [callStatus, setCallStatus] = useState('idle');
+  const [currentRoom, setCurrentRoom] = useState(null);
+  const [roomParticipants, setRoomParticipants] = useState([]);
 
   const localAudioRef = useRef();
   const localStreamRef = useRef();
@@ -39,27 +29,73 @@ export default function GroupAudioCall() {
   useEffect(() => {
     socket.emit('register', username);
 
-    socket.on('incoming-call', async ({ from, offer }) => {
-      console.log(`Incoming call from ${from}`);
-      setIncoming({ from, offer });
+    // Handle room creation/joining
+    socket.on('room-created', ({ roomId, participants }) => {
+      console.log(`Room ${roomId} created with participants:`, participants);
+      setCurrentRoom(roomId);
+      setRoomParticipants(participants);
+      setCallStatus('calling');
+    });
+
+    socket.on('user-joined-room', ({ roomId, participant, participants }) => {
+      console.log(`${participant} joined room ${roomId}`);
+      setRoomParticipants(participants);
+    });
+
+    // Handle peer-to-peer connections
+    socket.on('incoming-call', async ({ from, offer, roomId }) => {
+      console.log(`Incoming call from ${from} in room ${roomId}`);
+      setIncoming({ from, offer, roomId });
     });
 
     socket.on('call-answered', async ({ from, answer }) => {
       const peer = peersRef.current[from];
-      if (peer) await peer.setRemoteDescription(new RTCSessionDescription(answer));
+      if (peer) {
+        await peer.setRemoteDescription(new RTCSessionDescription(answer));
+      }
     });
 
     socket.on('ice-candidate', async ({ from, candidate }) => {
       const peer = peersRef.current[from];
-      if (peer) await peer.addIceCandidate(new RTCIceCandidate(candidate));
+      if (peer) {
+        await peer.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+    });
+
+    // Handle when someone wants to connect to you
+    socket.on('request-connection', async ({ from, roomId }) => {
+      console.log(`Connection request from ${from} in room ${roomId}`);
+      if (currentRoom === roomId) {
+        await initiateCallTo(from);
+      }
+    });
+
+    socket.on('user-left-room', ({ participant, participants }) => {
+      console.log(`${participant} left the room`);
+      // Clean up peer connection
+      if (peersRef.current[participant]) {
+        peersRef.current[participant].close();
+        delete peersRef.current[participant];
+      }
+      // Remove remote stream
+      if (remoteStreamsRef.current[participant]) {
+        delete remoteStreamsRef.current[participant];
+      }
+      // Update UI
+      setRemoteAudios(prev => prev.filter(audio => audio.id !== participant));
+      setRoomParticipants(participants);
     });
 
     return () => {
+      socket.off('room-created');
+      socket.off('user-joined-room');
       socket.off('incoming-call');
       socket.off('call-answered');
       socket.off('ice-candidate');
+      socket.off('request-connection');
+      socket.off('user-left-room');
     };
-  }, [username]);
+  }, [username, currentRoom]);
 
   const toggleUser = (user) => {
     setSelectedUsers(prev =>
@@ -105,6 +141,7 @@ export default function GroupAudioCall() {
     };
 
     peer.ontrack = (e) => {
+      console.log(`Received track from ${targetUsername}`);
       let stream = remoteStreamsRef.current[targetUsername];
       if (!stream) {
         stream = new MediaStream();
@@ -118,45 +155,111 @@ export default function GroupAudioCall() {
       ]);
     };
 
+    peer.onconnectionstatechange = () => {
+      console.log(`Connection with ${targetUsername}: ${peer.connectionState}`);
+      if (peer.connectionState === 'connected') {
+        setCallStatus('connected');
+      }
+    };
+
     peersRef.current[targetUsername] = peer;
     return peer;
   };
 
-  const startGroupCall = async () => {
+  const initiateCallTo = async (targetUsername) => {
     const stream = await getLocalStream();
-    for (const user of selectedUsers) {
-      const peer = createPeerConnection(user.username);
-      stream.getTracks().forEach(track => peer.addTrack(track, stream));
-      const offer = await peer.createOffer();
-      await peer.setLocalDescription(offer);
+    const peer = createPeerConnection(targetUsername);
+    
+    stream.getTracks().forEach(track => {
+      peer.addTrack(track, stream);
+    });
 
-      socket.emit('call-user', {
-        to: user.username,
-        from: username,
-        offer
-      });
-    }
-    setCallStatus('calling');
+    const offer = await peer.createOffer();
+    await peer.setLocalDescription(offer);
+
+    socket.emit('call-user', {
+      to: targetUsername,
+      from: username,
+      offer,
+      roomId: currentRoom
+    });
+  };
+
+  const startGroupCall = async () => {
+    // Create room with selected users
+    const participantUsernames = selectedUsers.map(user => user.username);
+    participantUsernames.push(username); // Add self to participants
+    
+    socket.emit('create-room', {
+      participants: participantUsernames,
+      creator: username
+    });
+
+    // Get local stream ready
+    await getLocalStream();
   };
 
   const answerCall = async () => {
-    const { from, offer } = incoming;
+    const { from, offer, roomId } = incoming;
+    setCurrentRoom(roomId);
+    
     const peer = createPeerConnection(from);
     const stream = await getLocalStream();
-    stream.getTracks().forEach(track => peer.addTrack(track, stream));
+    
+    stream.getTracks().forEach(track => {
+      peer.addTrack(track, stream);
+    });
+
     await peer.setRemoteDescription(new RTCSessionDescription(offer));
     const answer = await peer.createAnswer();
     await peer.setLocalDescription(answer);
 
-    socket.emit('answer-call', { to: from, from: username, answer });
+    socket.emit('answer-call', { 
+      to: from, 
+      from: username, 
+      answer,
+      roomId 
+    });
+
+    // Join the room
+    socket.emit('join-room', { roomId, username });
+    
     setIncoming(null);
     setCallStatus('connected');
+  };
+
+  const endCall = () => {
+    // Close all peer connections
+    Object.values(peersRef.current).forEach(peer => {
+      peer.close();
+    });
+    peersRef.current = {};
+
+    // Stop local stream
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => track.stop());
+      localStreamRef.current = null;
+    }
+
+    // Clear remote streams
+    remoteStreamsRef.current = {};
+    setRemoteAudios([]);
+
+    // Leave room
+    if (currentRoom) {
+      socket.emit('leave-room', { roomId: currentRoom, username });
+    }
+
+    // Reset state
+    setCurrentRoom(null);
+    setRoomParticipants([]);
+    setCallStatus('idle');
   };
 
   const getStatusText = () => {
     switch (callStatus) {
       case 'calling': return 'Calling...';
-      case 'connected': return 'Connected';
+      case 'connected': return `Connected (Room: ${currentRoom})`;
       default: return 'Ready';
     }
   };
@@ -173,44 +276,55 @@ export default function GroupAudioCall() {
             <span className={`status-indicator status-${callStatus}`}></span>
             <strong>Logged in as: {username}</strong> - {getStatusText()}
           </p>
+          {roomParticipants.length > 0 && (
+            <p>Room participants: {roomParticipants.join(', ')}</p>
+          )}
         </div>
 
-        <div className="search-section">
-          <input
-            className="search-input"
-            placeholder="Search users to add to call..."
-            value={searchQuery}
-            onChange={(e) => searchUsers(e.target.value)}
-          />
+        {callStatus === 'idle' && (
+          <div className="search-section">
+            <input
+              className="search-input"
+              placeholder="Search users to add to call..."
+              value={searchQuery}
+              onChange={(e) => searchUsers(e.target.value)}
+            />
 
-          <ul className="users-list">
-            {searchResults.map(user => (
-              <li key={user._id} className="user-item" onClick={() => toggleUser(user)}>
-                <label className="user-label">
-                  <input
-                    className="user-checkbox"
-                    type="checkbox"
-                    checked={selectedUsers.some(u => u.username === user.username)}
-                    onChange={() => toggleUser(user)}
-                  />
-                  {user.username}
-                </label>
-              </li>
-            ))}
-          </ul>
-        </div>
+            <ul className="users-list">
+              {searchResults.map(user => (
+                <li key={user._id} className="user-item" onClick={() => toggleUser(user)}>
+                  <label className="user-label">
+                    <input
+                      className="user-checkbox"
+                      type="checkbox"
+                      checked={selectedUsers.some(u => u.username === user.username)}
+                      onChange={() => toggleUser(user)}
+                    />
+                    {user.username}
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="call-controls">
-          <button 
-            className="start-call-btn" 
-            onClick={startGroupCall} 
-            disabled={selectedUsers.length === 0}
-          >
-            {selectedUsers.length > 0 
-              ? `Start Call with ${selectedUsers.length} user${selectedUsers.length > 1 ? 's' : ''}`
-              : 'Select users to start call'
-            }
-          </button>
+          {callStatus === 'idle' ? (
+            <button
+              className="start-call-btn"
+              onClick={startGroupCall}
+              disabled={selectedUsers.length === 0}
+            >
+              {selectedUsers.length > 0
+                ? `Start Call with ${selectedUsers.length} user${selectedUsers.length > 1 ? 's' : ''}`
+                : 'Select users to start call'
+              }
+            </button>
+          ) : (
+            <button className="end-call-btn" onClick={endCall}>
+              End Call
+            </button>
+          )}
         </div>
 
         {incoming && (
@@ -231,7 +345,7 @@ export default function GroupAudioCall() {
               <h4>🔊 Remote Audio ({remoteAudios.length} participant{remoteAudios.length > 1 ? 's' : ''})</h4>
               {remoteAudios.map(({ id, stream }) => (
                 <div key={id} className="remote-audio-item">
-                  <p>👤 {id}</p>
+                  <p>🎧 {id}</p>
                   <audio
                     className="audio-controls"
                     autoPlay
